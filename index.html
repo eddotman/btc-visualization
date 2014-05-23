@@ -7,6 +7,26 @@
 		<script src="http://cdnjs.cloudflare.com/ajax/libs/d3/3.4.6/d3.js"></script>
 		<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
 		<link rel="stylesheet" href="http://netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+
+		<style>
+
+			body {
+			  font: 10px sans-serif;
+			}
+
+			.axis path,
+			.axis line {
+			  fill: none;
+			  stroke: #000;
+			  shape-rendering: crispEdges;
+			}
+
+			.area {
+			  fill: limegreen;
+			}
+
+		</style>
+
 	</head>
 
 	<body>
@@ -20,48 +40,111 @@
 			<h2>Introduction</h2>
 			<hr>
 			<p>
-				Updated BTC data retrieved from <a href="http://www.quandl.com">Quandl</a> and displayed using <a href="http://www.d3js.org">D3JS</a>.
+				Up-to-date BTC data retrieved from <a href="http://www.quandl.com">Quandl</a> and displayed using <a href="http://www.d3js.org">D3JS</a>.
 			</p>
 
 			<br>
 			<h2>BTC Retrieved Metadata</h2>
 			<hr>
-				<div id="metadata">
-				</div>
+				<table class="table table-striped">
+					<tr>
+						<td>Currency Type</td><td id="currType"></td>
+					</tr>
+					<tr>
+						<td>Dataset Name</td><td id="dataName"></td>
+					</tr>
+					<tr>
+						<td>Data Point Frequency</td><td id="dataFreq"></td>
+					</tr>
+					<tr>
+						<td>Start Date</td><td id="startDate"></td>
+					</tr>
+					<tr>
+						<td>End Date</td><td id="endDate"></td>
+					</tr>
+				</table>
 
 			<br>
 			<h2>BTC Visualization</h2>
 			<hr>
+
+			<div id="vis" class="text-center">
+			</div>
+
+			<br>
 
 
 		</div>
 
 		<script>
 			$(document).ready(function(){
-				d3.json("http://www.quandl.com/api/v1/datasets/BAVERAGE/USD.json?rows=1", function(e, data){
+				d3.json("http://www.quandl.com/api/v1/datasets/BAVERAGE/USD.json", function(e, data){
 					console.log(data);
 
-					var table = d3.select("#metadata").append("table"),
-						tbody = table.append("tbody");
+					$("#currType").html(data.code);
+					$("#dataName").html(data.name);
+					$("#dataFreq").html(data.frequency);
+					$("#startDate").html(data.from_date);
+					$("#endDate").html(data.to_date);
 
-					var rows = tbody.selectAll("tr")
-		        .data(data)
-		        .enter()
-		        .append("tr");
+					var margin = {top: 20, right: 20, bottom: 30, left: 50},
+			    width = 960 - margin.left - margin.right,
+			    height = 500 - margin.top - margin.bottom;
 
-		      var cells = rows.selectAll("td")
-		      	.data(function(row){
-		      		
-		      	});
+					var svg = d3.select("#vis").append("svg")
+						.attr("width", width + margin.left + margin.right)
+    				.attr("height", height + margin.top + margin.bottom)
+					.append("g")
+    				.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-					var svg = d3.select("body").append("svg");
+					var format = d3.time.format("%Y-%m-%d");
+					data.data.forEach(function(d) {
+						d.date = format.parse(d[0]);
+						d.price = +d[1];
+					});
 
-					svg.selectAll("circle")
-							.data(data.data)
-						.enter().append("circle")
-							.attr("r", 2.5)
-							.attr("cx", function(d) { return d.x; })
-							.attr("cy", function(d) { return d.y; });
+					var x = d3.time.scale()
+					    .range([0, width]);
+
+					var y = d3.scale.linear()
+					    .range([height, 0]);
+
+					var xAxis = d3.svg.axis()
+					    .scale(x)
+					    .orient("bottom");
+
+					var yAxis = d3.svg.axis()
+					    .scale(y)
+					    .orient("left");
+
+					x.domain(d3.extent(data.data, function(d) { return d.date; }));
+  				y.domain([0, d3.max(data.data, function(d) { return d.price; })]);
+
+					var area = d3.svg.area()
+				    .x(function(d) { return x(d.date); })
+				    .y0(height)
+				    .y1(function(d) { return y(d.price); });
+
+					svg.append("path")
+			      .datum(data.data)
+			      .attr("class", "area")
+			      .attr("d", area);
+
+			    svg.append("g")
+			      .attr("class", "x axis")
+			      .attr("transform", "translate(0," + height + ")")
+			      .call(xAxis);
+
+				  svg.append("g")
+			      .attr("class", "y axis")
+			      .call(yAxis)
+			    .append("text")
+			      .attr("transform", "rotate(-90)")
+			      .attr("y", 6)
+			      .attr("dy", ".71em")
+			      .style("text-anchor", "end")
+			      .text("Price ($)");
+
 				});
 			});
 		</script>
